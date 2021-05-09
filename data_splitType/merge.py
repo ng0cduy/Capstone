@@ -9,7 +9,14 @@ if __name__ == '__main__':
             print(os.path.exists(item_path))
             list_.append(item_path)
     list_ = natsort.natsorted(list_)
-    print(list_)
+    split_src_train = []
+    split_src_val   = []
+    for item in list_:
+        if item == 'train':
+            split_src_train.append(item)
+        else:
+            split_src_val.append(item)
+    
     fleeece_data_DUST = source + '/fleece_data_DUST'
     fleeece_data_BURR = source + '/fleece_data_BURR'
     fleeece_data_MBLS = source + '/fleece_data_MBLS'
@@ -64,4 +71,5 @@ if __name__ == '__main__':
     for itemm in val_path:
         move_array_folder(src_path=uncontam_val,des=itemm)
     # print(val_path)
+    
     
