@@ -35,7 +35,7 @@ def produce_bag_list (src):
     list_.sort(key=lambda f: int (re.sub('\D','',f)))
     return list_        
 def move_array_folder (src_path,des =''):
-    '''move the items in folder array source to destination'''
-    for item in src_path:
+    '''copy the items in folder array source to destination'''
+    for item in os.listdir(src_path):
         item_path = src_path + '/' + item
         shutil.copy(item_path,des)
