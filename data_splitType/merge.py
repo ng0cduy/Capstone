@@ -17,8 +17,7 @@ if __name__ == '__main__':
                 split_src_train.append(subItem_path)
             else:
                 split_src_val.append(subItem_path)
-    print(split_src_val)
-    print(split_src_train)
+
     fleeece_data_DUST = source + '/fleece_data_DUST'
     fleeece_data_BURR = source + '/fleece_data_BURR'
     fleeece_data_MBLS = source + '/fleece_data_MBLS'
@@ -72,6 +71,9 @@ if __name__ == '__main__':
         move_array_folder(src_path=uncontam_train,des=item)
     for itemm in val_path:
         move_array_folder(src_path=uncontam_val,des=itemm)
-    # print(val_path)
+    
+    print(split_src_val)
+    print('\n')
+    print(split_src_train)
     
     
