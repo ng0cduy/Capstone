@@ -13,7 +13,7 @@ def create_folder(path_name):
     else:
         shutil.rmtree(path_name)
         os.makedirs(path_name)
-    print(f"{path_name} create successfully")
+    # print(f"{path_name} create successfully")
 def produce_bag_list (src):
     list_ = os.listdir(src)
     list_.sort(key=lambda f: int (re.sub('\D','',f)))
@@ -39,3 +39,35 @@ def move_array_folder (src_path,des =''):
     for item in os.listdir(src_path):
         item_path = src_path + '/' + item
         shutil.copy(item_path,des)
+
+def create_list (listsend=[],listreceive=[],str=''):
+    '''
+    create a list for coppying
+    liststart: src path
+
+    '''
+    res = []
+    for j in listreceive:
+        if j.endswith(str.upper()):
+            res.append(j)
+    for item in listsend:
+        if not item.endswith(str.upper()):
+            res.append(item)
+    return res
+def copy_final_list (list =[]):
+    list_receive = list[0]
+    list_receive_contam = list_receive + '/contaminated'
+    list_receive_contam_train = list_receive_contam + '/train'
+    list_receive_contam_val   = list_receive_contam + '/val'
+    if os.path.exists(list_receive_contam_train) and os.path.exists(list_receive_contam_val):
+        for i in range(1,len(list),1):
+            for trainorval in os.listdir(list[i]):
+                trainorval_path = list[i] + '/' + trainorval
+                if trainorval =='train':
+                    # print('copy from ',trainorval_path,' to',list_receive_contam_train)
+                    move_array_folder(src_path=trainorval_path,des=list_receive_contam_train)
+                    # pass
+                else:
+                    # pass
+                    # print('copy from ',trainorval_path,' to',list_receive_contam_val)
+                    move_array_folder(src_path=trainorval_path,des=list_receive_contam_val)
