@@ -1,19 +1,5 @@
-from __future__ import print_function, division
-from numpy.lib.function_base import average
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
-import numpy as np
-import torchvision
-from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
-import time
-import os
-import copy
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import classification_report
+from conv_func import *
+import argparse
 plt.ion()   # interactive mode
 
 ######################################################################
@@ -22,133 +8,70 @@ plt.ion()   # interactive mode
 
 data_transforms = {
     'train': transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        # transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.4, hue=0.2),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'val': transforms.Compose([
-        transforms.Resize(224),
-        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+}
+data_transforms_A = {
+    'train': transforms.Compose([
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.1,hue=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+    'val': transforms.Compose([
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.1,hue=0.1),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
 }
 
-data_dir = 'fleece_data_BURR'
+
+'''
+BURR : bur
+DUST : dust
+MSTN : stain
+MBLS : belly
+MLKS : locks
+PCS  : skirting
+'''
+parser = argparse.ArgumentParser()
+parser.add_argument("data_dirr",help='add data path',type=str)
+parser.add_argument("model_name",help='add model name',type=str)
+args = parser.parse_args()
+data_dir = args.data_dirr
+# data_dir = 'fleece_data_MSTN'
+print(data_dir)
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                           data_transforms[x])
                   for x in ['train', 'val']}
-dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=8,
+image_datasets_A = {x: datasets.ImageFolder(os.path.join(data_dir, x),
+                                          data_transforms_A[x])
+                  for x in ['train', 'val']}  
+# dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=8,
+#                                              shuffle=True, num_workers=4)
+#               for x in ['train', 'val']}
+data_concat_train = torch.utils.data.ConcatDataset([image_datasets['train'],image_datasets_A['train']])
+data_concat_val = torch.utils.data.ConcatDataset([image_datasets['val'],image_datasets_A['val']])
+image_datasets_new = image_datasets_new = {'train': data_concat_train, 'val':data_concat_val};
+dataloaders_new = {x: torch.utils.data.DataLoader(image_datasets_new[x], batch_size=8,
                                              shuffle=True, num_workers=4)
               for x in ['train', 'val']}
-# print(dataloaders['train'])
-dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+
+dataset_sizes = {x: len(image_datasets_new[x]) for x in ['train', 'val']}
 class_names = image_datasets['train'].classes
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-######################################################################
-# set the optimizer
-def param_updates (model_feature,feature_extract_state):
-    params_to_update = model_feature.parameters()
-    print("Params to learn:")
-    if feature_extract_state:
-        params_to_update = []
-        for name,param in model_feature.named_parameters():
-            if param.requires_grad == True:
-                params_to_update.append(param)
-                print("\t",name)
-    else:
-        for name,param in model_feature.named_parameters():
-            if param.requires_grad == True:
-                print("\t",name)
-    return params_to_update  
-# Visualize a few images
-def imshow(inp, title=None):
-    """Imshow for Tensor."""
-    inp = inp.numpy().transpose((1, 2, 0))
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-    inp = std * inp + mean
-    inp = np.clip(inp, 0, 1)
-    plt.imshow(inp)
-    if title is not None:
-        plt.title(title)
-    plt.pause(0.001)  # pause a bit so that plots are updated
-
-def set_parameter_requires_grad(model, feature_extracting):
-    if feature_extracting == True:
-        for param in model.parameters():
-            param.requires_grad = False
-
-def init_model (model_name,num_classes,feature_extract=True):
-    model_ft = None
-    input_size =224
-    if model_name == "resnet":
-        model_ft = models.resnet18(pretrained=True)
-        set_parameter_requires_grad(model_ft,feature_extract)
-        num_ftrs = model_ft.fc.in_features
-        model_ft.fc = nn.Linear(num_ftrs, num_classes)
-        input_size = 224
-    elif model_name =="alexnet":
-        model_ft = models.alexnet(pretrained=True)
-        set_parameter_requires_grad(model_ft,feature_extract)
-        num_ftrs = model_ft.classifier[6].in_features
-        model_ft.classifier[6] = nn.Linear(num_ftrs,num_classes)
-        input_size = 224
-    elif model_name == "densenet":
-        model_ft = models.densenet121(pretrained=True)
-        set_parameter_requires_grad(model_ft,feature_extract)
-        num_ftrs = model_ft.classifier.in_features
-        model_ft.classifier = nn.Linear(num_ftrs, num_classes) 
-        input_size = 224
-    elif model_name == "squeezenet":
-        model_ft = models.squeezenet1_0(pretrained=True)
-        set_parameter_requires_grad(model_ft,feature_extract)
-        model_ft.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1,1), stride=(1,1))
-        model_ft.num_classes = num_classes
-        input_size = 224
-    return model_ft
-
-def perf_measure(y_actual, y_pred,pos_label=0):
-    TP = 0
-    FP = 0
-    TN = 0
-    FN = 0
-
-    for i in range(len(y_pred)): 
-        if y_actual[i]==y_pred[i]==pos_label:
-           TP += 1
-        if y_pred[i]==pos_label and y_actual[i]!=y_pred[i]:
-           FP += 1
-        if y_actual[i]==y_pred[i]!=pos_label:
-           TN += 1
-        if y_pred[i]!=pos_label and y_actual[i]!=y_pred[i]:
-           FN += 1
-
-    return(TP, FP, TN, FN)
-def fscore_compute(tp=0,fp=0,tn=0,fn=0):
-    if tp + fp ==0:
-        return (0,0,0)
-    else:
-        precision = tp/(tp+fp)
-        recall = tp/(tp+fn)
-        fscore = 2*precision*recall/(precision+recall)
-        return (precision,recall,fscore)
-def rate_compute(tp,fp,tn,fn):
-    '''
-    compute FNR,FPR,TPR,TNR
-    return FNR: Miss Detection Rate, FPR: False Alarm Rate
-    '''
-    TPR = tp/(tp+fn)
-    FNR = fn/(tp+fn)
-    FPR = fp/(fp+tn)
-    TNR = tn/(fp+tn)
-    return (TPR,FNR,FPR,TNR)
 
 
-inputs, classes = next(iter(dataloaders['train']))
+inputs, classes = next(iter(dataloaders_new['train']))
 out = torchvision.utils.make_grid(inputs)
 
 data_total_size = sum(dataset_sizes.values())
@@ -164,9 +87,9 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     val_acc_history = []
-    
+    f_score_hist = []
     for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('\nEpoch {}/{}'.format(epoch, num_epochs - 1))
         print('-' * 100)
         pred_ =np.array([])
         pred_ = torch.LongTensor(pred_)
@@ -181,7 +104,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         total_running_correct = 0;
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
-
             if phase == 'train':
                 model.train()  # Set model to training mode
             else:
@@ -191,7 +113,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
             running_corrects = 0
             running_not_contam = 0
             # Iterate over data.
-            for inputs, labels in dataloaders[phase]:
+            for inputs, labels in dataloaders_new[phase]:
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 
@@ -235,8 +157,11 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         pred_ = pred_.cpu().numpy()
         true_ = true_.cpu().numpy()
         TP, FP, TN, FN = perf_measure(true_,pred_,pos_label=0)
+            # pFP = FP/dataset_sizes[phase]
+            # pFN = FN/dataset_sizes[phase]
         print(f"tp: {TP} fp: {FP} tn: {TN} fn: {FN}")
         precision,recall,f_beta_score,support = precision_recall_fscore_support(true_, pred_,pos_label = 0,average='binary')
+        f_score_hist.append(f_beta_score)
         # print(classification_report(true_, pred_,target_names=['contaminant','not_contaminant'],zero_division=0,digits=4))
         print('Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision,recall,f_beta_score))
     time_elapsed = time.time() - since
@@ -246,7 +171,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model,val_acc_history
+    return model,val_acc_history,f_score_hist
 
 ######################################################################
 # Visualizing the model predictions
@@ -260,7 +185,7 @@ def visualize_model(model, num_images=12,model_name=''):
     out_preds = ''
     out_label = ''
     with torch.no_grad():
-        for i, (inputs, labels) in enumerate(dataloaders['val']):
+        for i, (inputs, labels) in enumerate(dataloaders_new['val']):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -293,76 +218,93 @@ def visualize_model(model, num_images=12,model_name=''):
 #
 model_names = ['alexnet','resnet','squeezenet','densenet']
 num_e = 25
-# model_name_ = "densenet"
-for model_name_ in model_names:
-    model_ft_extract = False
-    model_ft = init_model(model_name=model_name_,num_classes=2,feature_extract=model_ft_extract)
-    print(model_name_)
 
 
-    model_ft = model_ft.to(device)
-
-    criterion = nn.CrossEntropyLoss()
-    param_ft = param_updates(model_ft,model_ft_extract)
-    # Observe that all parameters are being optimized
-    optimizer_ft = optim.SGD(param_ft,lr=0.001, momentum=0.9)
-
-    # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
-
-    ######################################################################
-    # Train and evaluate
- 
-
-    model_ft,ohist = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
-                        num_epochs=num_e)
-    ######################################################################
-    #
-
-    visualize_model(model_ft,model_name=model_name_)
+args = parser.parse_args()
+# print(args.model_name)
+model_name_ = args.model_name
+# for model_name_ in model_names:
+model_ft_extract = False
+model_ft = init_model(model_name=model_name_,num_classes=2,feature_extract=model_ft_extract)
+print(model_name_)
 
 
-    ######################################################################
-    # ConvNet as fixed feature extractor
-    # ----------------------------------
+model_ft = model_ft.to(device)
 
-    conv_ft_extract = True
-    model_conv = init_model(model_name=model_name_,num_classes=2,feature_extract=conv_ft_extract)
+criterion = nn.CrossEntropyLoss()
+param_ft = param_updates(model_ft,model_ft_extract)
+# Observe that all parameters are being optimized
+optimizer_ft = optim.SGD(param_ft,lr=0.001, momentum=0.9)
 
-    model_conv = model_conv.to(device)
+# Decay LR by a factor of 0.1 every 7 epochs
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
-    criterion = nn.CrossEntropyLoss()
-    param_conv = param_updates(model_conv,conv_ft_extract)
-    # Observe that only parameters of final layer are being optimized as
-    # opposed to before.
-    optimizer_conv = optim.SGD(param_conv, lr=0.001, momentum=0.9)
-
-    # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
+######################################################################
+# Train and evaluate
 
 
-    ######################################################################
-    # Train and evaluate
-    # ^^^^^^^^^^^^^^^^^^
-    model_conv,fhist = train_model(model_conv, criterion, optimizer_conv,
-                            exp_lr_scheduler, num_epochs=num_e)
+model_ft,ohist,fscore_hist = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
+                    num_epochs=num_e)
+######################################################################
+#
 
-    ######################################################################
-    #
-    epochs =num_e
-    visualize_model(model_conv,model_name=model_name_)
-    ohist_ = []
-    fhist_ = []
-    ohist_ = [h.cpu().numpy() for h in ohist]
-    fhist_ = [h.cpu().numpy() for h in fhist]
-    fig1 = plt.figure(num=model_name_,figsize=(18,9))
-    plt.title(f"Validation Accuracy vs. Number of Training Epochs {model_name_}")
-    plt.xlabel("Training Epochs")
-    plt.ylabel("Validation Accuracy")
-    plt.plot(range(1,epochs+1),ohist_,label="Finetuning the convnet")
-    plt.plot(range(1,epochs+1),fhist_,label="ConvNet as fixed feature extractor")
-    plt.ylim((0,1.))
-    plt.xticks(np.arange(1, epochs+1, 1.0))
-    plt.legend()
-    plt.ioff()
-    plt.show()
+visualize_model(model_ft,model_name=model_name_)
+
+
+# ######################################################################
+# # ConvNet as fixed feature extractor
+# # ----------------------------------
+
+# conv_ft_extract = True
+# model_conv = init_model(model_name=model_name_,num_classes=2,feature_extract=conv_ft_extract)
+
+# model_conv = model_conv.to(device)
+
+# criterion = nn.CrossEntropyLoss()
+# param_conv = param_updates(model_conv,conv_ft_extract)
+# # Observe that only parameters of final layer are being optimized as
+# # opposed to before.
+# optimizer_conv = optim.SGD(param_conv, lr=0.001, momentum=0.9)
+
+# # Decay LR by a factor of 0.1 every 7 epochs
+# exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
+
+
+# ######################################################################
+# # Train and evaluate
+# # ^^^^^^^^^^^^^^^^^^
+# model_conv,fhist = train_model(model_conv, criterion, optimizer_conv,
+#                         exp_lr_scheduler, num_epochs=num_e)
+
+# ######################################################################
+# #
+epochs =num_e
+# visualize_model(model_conv,model_name=model_name_)
+# ohist_ = []
+
+fscore_hist_ = []
+fscore_hist_ = [h for h in fscore_hist]
+fig1 = plt.figure(num=model_name_,figsize=(18,9))
+plt.title(f"F_score vs. Number of Training Epochs {model_name_}")
+plt.xlabel("Training Epochs")
+plt.ylabel("F_score")
+plt.plot(range(1,epochs+1),fscore_hist_,label="FScore")
+plt.ylim((0,1.))
+plt.xticks(np.arange(1,epochs+1,1.0))
+plt.legend()
+
+
+# fhist_ = []
+# ohist_ = [h.cpu().numpy() for h in ohist]
+# fhist_ = [h.cpu().numpy() for h in fhist]
+# fig1 = plt.figure(num=model_name_,figsize=(18,9))
+# plt.title(f"Validation Accuracy vs. Number of Training Epochs {model_name_}")
+# plt.xlabel("Training Epochs")
+# plt.ylabel("Validation Accuracy")
+# plt.plot(range(1,epochs+1),ohist_,label="Finetuning the convnet")
+# plt.plot(range(1,epochs+1),fhist_,label="ConvNet as fixed feature extractor")
+# plt.ylim((0,1.))
+# plt.xticks(np.arange(1, epochs+1, 1.0))
+# plt.legend()
+plt.ioff()
+plt.show()
