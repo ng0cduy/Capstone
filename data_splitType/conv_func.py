@@ -112,3 +112,4 @@ def rate_compute(tp,fp,tn,fn):
     FPR = fp/(fp+tn)
     TNR = tn/(fp+tn)
     return (TPR,FNR,FPR,TNR)
+
