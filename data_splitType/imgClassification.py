@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
         # load best model weights
         model.load_state_dict(best_model_wts)
-        return model,val_acc_history,f_score_hist
+        return model,val_acc_history,f_score_hist,time_elapsed
 
     ######################################################################
     # Visualizing the model predictions
@@ -242,7 +242,7 @@ if __name__ == '__main__':
     # Train and evaluate
 
 
-    model_ft,ohist,fscore_hist = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
+    model_ft,ohist,fscore_hist,time_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                         num_epochs=num_e)
     ######################################################################
     #
@@ -254,40 +254,45 @@ if __name__ == '__main__':
     # # ConvNet as fixed feature extractor
     # # ----------------------------------
 
-    # conv_ft_extract = True
-    # model_conv = init_model(model_name=model_name_,num_classes=2,feature_extract=conv_ft_extract)
+    conv_ft_extract = True
+    model_conv = init_model(model_name=model_name_,num_classes=2,feature_extract=conv_ft_extract)
 
-    # model_conv = model_conv.to(device)
+    model_conv = model_conv.to(device)
 
-    # criterion = nn.CrossEntropyLoss()
-    # param_conv = param_updates(model_conv,conv_ft_extract)
-    # # Observe that only parameters of final layer are being optimized as
-    # # opposed to before.
-    # optimizer_conv = optim.SGD(param_conv, lr=0.001, momentum=0.9)
+    criterion = nn.CrossEntropyLoss()
+    param_conv = param_updates(model_conv,conv_ft_extract)
+    # Observe that only parameters of final layer are being optimized as
+    # opposed to before.
+    optimizer_conv = optim.SGD(param_conv, lr=0.001, momentum=0.9)
 
-    # # Decay LR by a factor of 0.1 every 7 epochs
-    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
+    # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
 
 
-    # ######################################################################
-    # # Train and evaluate
-    # # ^^^^^^^^^^^^^^^^^^
-    # model_conv,fhist = train_model(model_conv, criterion, optimizer_conv,
-    #                         exp_lr_scheduler, num_epochs=num_e)
+    ######################################################################
+    # Train and evaluate
+    # ^^^^^^^^^^^^^^^^^^
+    model_conv,fhist,fscore_hist_f,time_ffe = train_model(model_conv, criterion, optimizer_conv,
+                            exp_lr_scheduler, num_epochs=num_e)
 
     # ######################################################################
     # #
     epochs =num_e
-    # visualize_model(model_conv,model_name=model_name_)
+    visualize_model(model_conv,model_name=model_name_)
     # ohist_ = []
 
     fscore_hist_ = []
+    fscore_hist_f_ = []
     fscore_hist_ = [h for h in fscore_hist]
+    fscore_hist_f_ = [h1 for h1 in fscore_hist_f]
+    print(time_ft)
+    print(time_ffe)
     fig1 = plt.figure(num=model_name_,figsize=(18,9))
     plt.title(f"F_score vs. Number of Training Epochs {model_name_}")
     plt.xlabel("Training Epochs")
     plt.ylabel("F_score")
-    plt.plot(range(1,epochs+1),fscore_hist_,label="FScore")
+    plt.plot(range(1,epochs+1),fscore_hist_,label="Fine_tunning")
+    plt.plot(range(1,epochs+1),fscore_hist_f_,label="Fixed Feature Extractor")
     plt.ylim((0,1.))
     plt.xticks(np.arange(1,epochs+1,1.0))
     plt.legend()
