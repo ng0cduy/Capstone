@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     dataset_sizes = {x: len(image_datasets_new[x]) for x in ['train', 'val']}
     class_names = image_datasets['train'].classes
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0")
 
 
 
@@ -150,18 +150,16 @@ if __name__ == '__main__':
                 # deep copy the model
                 if phase == 'val' and epoch_acc > best_acc:
                     best_acc = epoch_acc
+                if phase == 'val' and epoch == num_epochs -1:
                     best_model_wts = copy.deepcopy(model.state_dict())
                 if phase == 'val':
                     val_acc_history.append(epoch_acc)
             pred_ = pred_.cpu().numpy()
             true_ = true_.cpu().numpy()
             TP, FP, TN, FN = perf_measure(true_,pred_,pos_label=0)
-                # pFP = FP/dataset_sizes[phase]
-                # pFN = FN/dataset_sizes[phase]
             print(f"tp: {TP} fp: {FP} tn: {TN} fn: {FN}")
             precision,recall,f_beta_score,support = precision_recall_fscore_support(true_, pred_,pos_label = 0,average='binary')
             f_score_hist.append(f_beta_score)
-            # print(classification_report(true_, pred_,target_names=['contaminant','not_contaminant'],zero_division=0,digits=4))
             print('Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision,recall,f_beta_score))
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -176,7 +174,7 @@ if __name__ == '__main__':
     # Visualizing the model predictions
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    def visualize_model(model, num_images=12,model_name=''):
+    def visualize_model(model, num_images=16,model_name=''):
         was_training = model.training
         model.eval()
         images_so_far = 0
@@ -201,7 +199,7 @@ if __name__ == '__main__':
                     else:
                         out_label = 'Clean'
                     images_so_far += 1
-                    ax = plt.subplot(num_images//3, 3, images_so_far)
+                    ax = plt.subplot(num_images//4, 4, images_so_far)
                     ax.axis('off')
                     ax.set_title('P: {} T: {}'.format(out_preds,out_label))
                     # ax.set_title('P: {} T: {}'.format(class_names[preds[j]],class_names[labels.data[j]]))
@@ -215,19 +213,16 @@ if __name__ == '__main__':
     # ----------------------
     #
     #
-    model_names = ['alexnet','resnet','squeezenet','densenet']
+    # model_names = ['alexnet','resnet','squeezenet','densenet']
     num_e = 25
 
 
     args = parser.parse_args()
-    # print(args.model_name)
+    print(args.model_name)
     model_name_ = args.model_name
-    # for model_name_ in model_names:
     model_ft_extract = False
     model_ft = init_model(model_name=model_name_,num_classes=2,feature_extract=model_ft_extract)
     print(model_name_)
-
-
     model_ft = model_ft.to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -244,8 +239,8 @@ if __name__ == '__main__':
 
     model_ft,ohist,fscore_hist,time_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                         num_epochs=num_e)
-    ######################################################################
-    #
+    #####################################################################
+    
 
     visualize_model(model_ft,model_name=model_name_)
 
@@ -277,10 +272,11 @@ if __name__ == '__main__':
 
     # ######################################################################
     # #
-    epochs =num_e
+    # Visualize some images
     visualize_model(model_conv,model_name=model_name_)
-    # ohist_ = []
-
+    # ploting graph
+    epochs =num_e
+    ohist_ = []
     fscore_hist_ = []
     fscore_hist_f_ = []
     fscore_hist_ = [h for h in fscore_hist]
