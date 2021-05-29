@@ -1,6 +1,4 @@
 if __name__ == '__main__':
-    
-        
     from conv_func import *
     import argparse
     plt.ion()   # interactive mode
@@ -47,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument("model_name",help='add model name',type=str)
     args = parser.parse_args()
     data_dir = args.data_dirr
-    # data_dir = 'fleece_data_MSTN'
+    # data_dir = 'fleece_data_BURR'  #del later
     print(data_dir)
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                             data_transforms[x])
@@ -115,7 +113,8 @@ if __name__ == '__main__':
                 for inputs, labels in dataloaders_new[phase]:
                     inputs = inputs.to(device)
                     labels = labels.to(device)
-                    
+                    if epoch == 0:
+                        print('labels',labels)
                     # zero the parameter gradients
                     optimizer.zero_grad()
 
@@ -185,10 +184,10 @@ if __name__ == '__main__':
             for i, (inputs, labels) in enumerate(dataloaders_new['val']):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-
+                # print('inputs',inputs)
                 outputs = model(inputs)
+                # print('output',outputs)
                 _, preds = torch.max(outputs, 1)
-
                 for j in range(inputs.size()[0]):
                     if class_names[preds[j]] == 'contaminated':
                         out_preds = 'Contam'
@@ -199,7 +198,8 @@ if __name__ == '__main__':
                     else:
                         out_label = 'Clean'
                     images_so_far += 1
-                    ax = plt.subplot(num_images//4, 4, images_so_far)
+                    col = 4
+                    ax = plt.subplot(num_images//col, col, images_so_far)
                     ax.axis('off')
                     ax.set_title('P: {} T: {}'.format(out_preds,out_label))
                     # ax.set_title('P: {} T: {}'.format(class_names[preds[j]],class_names[labels.data[j]]))
@@ -218,15 +218,16 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    print(args.model_name)
     model_name_ = args.model_name
     model_ft_extract = False
+    # model_name_ = 'alexnet' #del-later
     model_ft = init_model(model_name=model_name_,num_classes=2,feature_extract=model_ft_extract)
     print(model_name_)
     model_ft = model_ft.to(device)
 
     criterion = nn.CrossEntropyLoss()
     param_ft = param_updates(model_ft,model_ft_extract)
+
     # Observe that all parameters are being optimized
     optimizer_ft = optim.SGD(param_ft,lr=0.001, momentum=0.9)
 
