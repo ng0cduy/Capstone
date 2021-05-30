@@ -199,14 +199,14 @@ if __name__ == '__main__':
             true_2 = true_2.cpu().numpy()
             TP1, FP1, TN1, FN1 = perf_measure(true_1,pred_1,pos_label=0)
             TP2, FP2, TN2, FN2 = perf_measure(true_2,pred_2,pos_label=0)
-            print(f"tp: {TP1} fp: {FP1} tn: {TN1} fn: {FN1}")
-            print(f"tp: {TP2} fp: {FP2} tn: {TN2} fn: {FN2}")
+            print(f"FT:  tp: {TP1} fp: {FP1} tn: {TN1} fn: {FN1}")
+            print(f"FFE: tp: {TP2} fp: {FP2} tn: {TN2} fn: {FN2}")
             precision1,recall1,f_beta_score1,support1 = precision_recall_fscore_support(true_1, pred_1,pos_label = 0,average='binary')
             precision2,recall2,f_beta_score2,support2 = precision_recall_fscore_support(true_2, pred_2,pos_label = 0,average='binary')
             f_score_hist1.append(f_beta_score1)
             f_score_hist2.append(f_beta_score2)
-            print('Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision1,recall1,f_beta_score1))
-            print('Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision2,recall2,f_beta_score2))
+            print('FT:  Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision1,recall1,f_beta_score1))
+            print('FFE: Precision {:.4f} Recall {:.4f} F_score {:.4f}'.format(precision2,recall2,f_beta_score2))
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60))
@@ -305,9 +305,9 @@ if __name__ == '__main__':
                     ax.set_title('P: {} T: {}'.format(out_preds1,out_label))
                     imshow(inputs.cpu().data[j])
                     plt.figure(2)
-                    ax = plt.subplot(num_images//col, col, images_so_far)
-                    ax.axis('off')
-                    ax.set_title('P: {} T: {}'.format(out_preds2,out_label))
+                    ax1 = plt.subplot(num_images//col, col, images_so_far)
+                    ax1.axis('off')
+                    ax1.set_title('P: {} T: {}'.format(out_preds2,out_label))
                     imshow(inputs.cpu().data[j])
                     if images_so_far == num_images:
                         model1.train(mode=was_training1)
@@ -389,23 +389,23 @@ if __name__ == '__main__':
     # visualize_model(model_conv,model_name=model_name_)
     visualize_model1(model_ft,model_conv)
     # ploting graph
-    # epochs =num_e
+    epochs =num_e
     # ohist_ = []
-    # fscore_hist_ = []
-    # fscore_hist_f_ = []
-    # fscore_hist_ = [h for h in fscore_hist]
-    # fscore_hist_f_ = [h1 for h1 in fscore_hist_f]
+    fscore_hist_1 = []
+    fscore_hist_2 = []
+    fscore_hist_1 = [h for h in f_score_hist1]
+    fscore_hist_2 = [h for h in f_score_hist2]
     # print(time_ft)
     # print(time_ffe)
-    # fig1 = plt.figure(num=model_name_,figsize=(18,9))
-    # plt.title(f"F_score vs. Number of Training Epochs {model_name_}")
-    # plt.xlabel("Training Epochs")
-    # plt.ylabel("F_score")
-    # plt.plot(range(1,epochs+1),fscore_hist_,label="Fine_tunning")
-    # plt.plot(range(1,epochs+1),fscore_hist_f_,label="Fixed Feature Extractor")
-    # plt.ylim((0,1.))
-    # plt.xticks(np.arange(1,epochs+1,1.0))
-    # plt.legend()
+    fig1 = plt.figure(num=model_name_,figsize=(18,9))
+    plt.title(f"F_score vs. Number of Training Epochs {model_name_}")
+    plt.xlabel("Training Epochs")
+    plt.ylabel("F_score")
+    plt.plot(range(1,epochs+1),fscore_hist_1,label="Fine_tunning")
+    plt.plot(range(1,epochs+1),fscore_hist_2,label="Fixed Feature Extractor")
+    plt.ylim((0,1.))
+    plt.xticks(np.arange(1,epochs+1,1.0))
+    plt.legend()
 
 
     # fhist_ = []
